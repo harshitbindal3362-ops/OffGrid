@@ -4,17 +4,23 @@ import { prisma } from "@/lib/prisma";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://offgrid.in";
 
-  const products = await prisma.product.findMany({
-    where: { status: "PUBLISHED" },
-    select: { slug: true, updatedAt: true },
-  });
+  let productEntries: MetadataRoute.Sitemap = [];
 
-  const productEntries: MetadataRoute.Sitemap = products.map((p) => ({
-    url: `${baseUrl}/shop/${p.slug}`,
-    lastModified: p.updatedAt,
-    changeFrequency: "daily",
-    priority: 0.8,
-  }));
+  try {
+    const products = await prisma.product.findMany({
+      where: { status: "PUBLISHED" },
+      select: { slug: true, updatedAt: true },
+    });
+
+    productEntries = products.map((p) => ({
+      url: `${baseUrl}/shop/${p.slug}`,
+      lastModified: p.updatedAt,
+      changeFrequency: "daily",
+      priority: 0.8,
+    }));
+  } catch (error) {
+    console.warn("Failed to fetch products for sitemap:", error);
+  }
 
   const staticEntries: MetadataRoute.Sitemap = [
     {

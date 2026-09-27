@@ -1,0 +1,142 @@
+// Prisma schema for OFFGRID Streetwear & Thrift E-Commerce
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  name         String?
+  role         String    @default("CUSTOMER") // CUSTOMER | ADMIN
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  orders         Order[]
+  savedAddresses SavedAddress[]
+  wishlistItems  WishlistItem[]
+}
+
+model SavedAddress {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDefault Boolean  @default(false)
+  fullName  String
+  address1  String
+  city      String
+  state     String
+  pincode   String
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model Product {
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  name           String
+  description    String
+  condition      String           // THRIFTED | NEW
+  category       String           // TEES | OUTERWEAR | BOTTOMS | KNITWEAR
+  isOneOfOne     Boolean          @default(false)
+  tag            String?          // e.g. "NEW", "VINTAGE", "RARE", or null
+  price          Float
+  compareAtPrice Float?
+  status         String           @default("PUBLISHED") // DRAFT | PUBLISHED | ARCHIVED
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  images         ProductImage[]
+  variants       ProductVariant[]
+  orderItems     OrderItem[]
+  wishlistedBy   WishlistItem[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  sortOrder Int      @default(0)
+  altText   String?
+  createdAt DateTime @default(now())
+}
+
+model ProductVariant {
+  id         String      @id @default(cuid())
+  productId  String
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size       String      // e.g. "ONE SIZE", "S", "M", "L", "XL", "XXL"
+  stock      Int         @default(1) // 0 or 1 for thrifted 1/1, >=0 for in-house
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  orderItems OrderItem[]
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email           String
+  status          String      @default("PENDING") // PENDING | PAID | FULFILLED | CANCELLED
+  stripeSessionId String?     @unique
+  subtotal        Float
+  total           Float
+  shippingAddress String?     // JSON string
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id                  String         @id @default(cuid())
+  orderId             String
+  order               Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId           String
+  product             Product        @relation(fields: [productId], references: [id])
+  variantId           String
+  variant             ProductVariant @relation(fields: [variantId], references: [id])
+  productNameSnapshot String
+  priceSnapshot       Float
+  quantity            Int            @default(1)
+  sizeSnapshot        String?
+}
+
+model Collection {
+  id        String   @id @default(cuid())
+  name      String   @unique // e.g. "home-picks"
+  title     String?
+  items     String   // JSON array of productIds in display order
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique // tickerText, footerTickerText, heroHeadline, heroSubhead, statsNumbers, storeAddress, storeHours, announcement
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
